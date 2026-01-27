@@ -1,0 +1,82 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ATK Budgeting System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Comic Sans MS', 'cursive', 'sans-serif'],
+            },
+            colors: {
+              'primary': {
+                DEFAULT: '#14b8a6', // teal-500
+                'light': '#5eead4', // teal-300
+                'dark': '#0d9488',  // teal-600
+              },
+              'secondary': '#0ea5e9', // sky-500
+              'danger': '#EF4444', // red-500
+              'warning': '#F59E0B', // amber-500
+              'background': '#f1f5f9', // slate-100
+              'surface': '#FFFFFF',
+              'sidebar': '#1e293b', // slate-800
+              'sidebar-hover': '#334152', // slate-700
+              'text-primary': '#334152', // slate-700
+              'text-secondary': '#64748b', // slate-500
+              'border-color': '#e2e8f0', // slate-200
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: 0, transform: 'translateY(10px)' },
+                '100%': { opacity: 1, transform: 'translateY(0)' },
+              },
+              scaleIn: {
+                '0%': { opacity: 0, transform: 'scale(0.95)' },
+                '100%': { opacity: 1, transform: 'scale(1)' },
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.4s ease-out forwards',
+              'scale-in': 'scaleIn 0.3s ease-out forwards',
+            },
+            boxShadow: {
+              'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04)',
+            }
+          },
+        },
+      }
+    </script>
+<style>
+  html {
+    font-size: 16px; /* Standard base font size for better scaling with rem units */
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
+    "vite": "https://aistudiocdn.com/vite@^7.1.10",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
+    "jspdf-autotable": "https://aistudiocdn.com/jspdf-autotable@^5.0.2",
+    "jspdf": "https://aistudiocdn.com/jspdf@^3.0.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-background font-sans text-text-primary">
+    <div id="root"></div>
+    <div id="modal-root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

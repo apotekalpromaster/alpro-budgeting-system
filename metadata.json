@@ -1,0 +1,5 @@
+{
+  "name": "ATK Budgeting System",
+  "description": "A comprehensive budgeting system for office supplies (ATK) with role-based access for users, managers, board of directors, and administrators. It facilitates budget requests, a multi-level approval workflow, procurement tracking, and master data management.",
+  "requestFramePermissions": []
+}
