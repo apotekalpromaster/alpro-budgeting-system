@@ -12,6 +12,7 @@ export interface User {
   bodId?: string;
   password?: string;
   jobTitle?: string;
+  outletId?: string;
 }
 
 export interface CompanyProfile {
