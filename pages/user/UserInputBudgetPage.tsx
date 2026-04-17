@@ -1,18 +1,18 @@
+// File: pages/user/UserInputBudgetPage.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useData } from '../../hooks/useData';
 import { useLoading } from '../../hooks/useLoading';
-import { submitMultipleBudgets } from '../../services/api';
-import { BudgetItem, BudgetStatus } from '../../types';
+import { submitMultipleBudgets, BudgetRequestPayload } from '../../services/supabase';
+import { BudgetItem } from '../../types';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
-};
+const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 
 const UserInputBudgetPage: React.FC = () => {
     usePageTitle('Input Budget');
@@ -30,72 +30,49 @@ const UserInputBudgetPage: React.FC = () => {
 
     useEffect(() => {
         if (products.length > 0) {
-            const budgetItems = products.map(p => ({
-                productId: p.id,
-                productName: p.name,
+            setAllProducts(products.map(p => ({
+                productId:    p.id,
+                productName:  p.name,
                 productImage: p.imageUrl,
-                unit: p.unit,
-                price: p.price,
-                vendorId: p.vendorId,
-                category: p.category || 'Habis Pakai',
-                qty: 0,
-                total: 0
-            }));
-            setAllProducts(budgetItems);
+                unit:         p.unit,
+                price:        p.price,
+                vendorId:     p.vendorId,
+                category:     p.category ?? 'Habis Pakai',
+                qty:          0,
+                total:        0,
+            })));
         }
     }, [products]);
 
     useEffect(() => {
-        if (!isDataLoaded) {
-            setIsLoading(true);
-        } else {
-            setIsLoading(false);
-        }
+        setIsLoading(!isDataLoaded);
     }, [isDataLoaded, setIsLoading]);
 
     const handleQuantityChange = (productId: string, newQtyString: string) => {
         const newQty = parseInt(newQtyString, 10);
-
-        if (isNaN(newQty)) {
-             setAllProducts(prev => prev.map(item =>
-                item.productId === productId
-                    ? { ...item, qty: 0, total: 0 }
-                    : item
-            ));
-            return;
-        }
-
-        if (newQty < 0) return;
-
         setAllProducts(prev => prev.map(item =>
             item.productId === productId
-                ? { ...item, qty: newQty, total: newQty * item.price }
+                ? { ...item, qty: isNaN(newQty) || newQty < 0 ? 0 : newQty, total: (isNaN(newQty) || newQty < 0 ? 0 : newQty) * item.price }
                 : item
         ));
     };
 
     const filteredItems = useMemo(() => {
-        const lowercasedTerm = searchTerm.toLowerCase();
+        const term = searchTerm.toLowerCase();
         return allProducts.filter(p => {
-            const matchesSearch = String(p.productName).toLowerCase().includes(lowercasedTerm) ||
-                                 String(p.productId).toLowerCase().includes(lowercasedTerm);
+            const matchesSearch   = p.productName.toLowerCase().includes(term) || p.productId.toLowerCase().includes(term);
             const matchesCategory = categoryFilter === 'Semua Kategori' || p.category === categoryFilter;
             return matchesSearch && matchesCategory;
         });
     }, [allProducts, searchTerm, categoryFilter]);
 
-    const itemsToSubmit = useMemo(() => {
-        return allProducts.filter(item => item.qty > 0);
-    }, [allProducts]);
-
-    const grandTotal = useMemo(() => {
-        return itemsToSubmit.reduce((sum, item) => sum + item.total, 0);
-    }, [itemsToSubmit]);
+    const itemsToSubmit = useMemo(() => allProducts.filter(i => i.qty > 0), [allProducts]);
+    const grandTotal    = useMemo(() => itemsToSubmit.reduce((sum, i) => sum + i.total, 0), [itemsToSubmit]);
 
     const handleOpenConfirmModal = () => {
         setError('');
         if (itemsToSubmit.length === 0) {
-            setError("Keranjang kosong. Silahkan masukkan qty pada setidaknya satu item.");
+            setError('Keranjang kosong. Silahkan masukkan qty pada setidaknya satu item.');
             return;
         }
         setIsConfirmModalOpen(true);
@@ -103,40 +80,43 @@ const UserInputBudgetPage: React.FC = () => {
 
     const handleSubmit = async () => {
         if (!user) {
-            setError("Sesi berakhir. Silahkan login kembali.");
+            setError('Sesi berakhir. Silahkan login kembali.');
             setIsConfirmModalOpen(false);
             return;
         }
-        
+
+        // outletId wajib ada di user session (diisi oleh AuthProvider dari tabel public.users)
+        const outletId = (user as any).outletId as string | undefined;
+        if (!outletId) {
+            setError('Akun Anda belum terdaftar di outlet manapun. Hubungi Admin.');
+            setIsConfirmModalOpen(false);
+            return;
+        }
+
         setIsLoading(true);
         setIsConfirmModalOpen(false);
 
         try {
+            // Kelompokkan item berdasarkan vendorId → satu BudgetRequestPayload per vendor
             const itemsByVendor = new Map<string, BudgetItem[]>();
-
             itemsToSubmit.forEach(item => {
                 const vId = item.vendorId || 'unknown';
-                if (!itemsByVendor.has(vId)) {
-                    itemsByVendor.set(vId, []);
-                }
+                if (!itemsByVendor.has(vId)) itemsByVendor.set(vId, []);
                 itemsByVendor.get(vId)!.push(item);
             });
 
-            const requestsPayload = [];
-
+            const requestsPayload: BudgetRequestPayload[] = [];
             for (const [vendorId, items] of itemsByVendor.entries()) {
-                const total = items.reduce((sum, i) => sum + i.total, 0);
-                
                 requestsPayload.push({
-                    userId: user.id,
-                    userName: user.name,
-                    department: user.department,
-                    items: items,
-                    total: total,
-                    status: BudgetStatus.PENDING_ADMIN_REVIEW, 
-                    managerApproverId: user.managerId,
-                    bodApproverId: user.bodId,
-                    vendorId: vendorId === 'unknown' ? null : vendorId
+                    userId:             user.id,
+                    userName:           user.name,
+                    department:         user.department,
+                    outletId:           outletId,
+                    items:              items,
+                    total:              items.reduce((sum, i) => sum + i.total, 0),
+                    vendorId:           vendorId === 'unknown' ? null : vendorId,
+                    managerApproverId:  user.managerId,
+                    bodApproverId:      user.bodId,
                 });
             }
 
@@ -144,10 +124,9 @@ const UserInputBudgetPage: React.FC = () => {
 
             setIsSuccessModalOpen(true);
             setAllProducts(prev => prev.map(item => ({ ...item, qty: 0, total: 0 })));
-
-        } catch (err) {
-            setError('Gagal submit budgeting. Silahkan coba kembali.');
-            console.error(err);
+        } catch (err: any) {
+            setError(err?.message ?? 'Gagal submit budgeting. Silahkan coba kembali.');
+            console.error('[UserInputBudgetPage] Submit error:', err);
         } finally {
             setIsLoading(false);
         }
@@ -156,12 +135,10 @@ const UserInputBudgetPage: React.FC = () => {
     return (
         <div className="h-full relative pb-24 md:pb-28">
             <Card className="flex flex-col h-full overflow-hidden">
-                 <div className="flex-shrink-0 flex flex-col lg:flex-row justify-between lg:items-center mb-6 gap-4">
-                    <h2 className="text-2xl font-bold text-text-primary flex items-center">
-                        Product List
-                    </h2>
+                <div className="flex-shrink-0 flex flex-col lg:flex-row justify-between lg:items-center mb-6 gap-4">
+                    <h2 className="text-2xl font-bold text-text-primary">Product List</h2>
                     <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-                        <select 
+                        <select
                             className="p-2.5 border border-gray-600 bg-gray-700 text-white rounded-md focus:ring-2 focus:ring-primary text-sm min-w-[150px]"
                             value={categoryFilter}
                             onChange={e => setCategoryFilter(e.target.value)}
@@ -202,22 +179,18 @@ const UserInputBudgetPage: React.FC = () => {
                                         <div className="text-xs text-gray-400 uppercase tracking-wider mt-0.5">{item.unit}</div>
                                     </td>
                                     <td className="py-4 px-4 text-center">
-                                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-tight ${item.category === 'Asset' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-tight ${item.category === 'Asset' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
                                             {item.category === 'Asset' ? 'ASSET' : 'HB'}
                                         </span>
                                     </td>
                                     <td className="py-4 px-4 text-center">
-                                        <button 
+                                        <button
                                             type="button"
                                             onClick={() => setZoomedImage({ src: item.productImage, alt: item.productName })}
                                             className="focus:outline-none focus:ring-2 focus:ring-primary rounded p-0.5 transition-all hover:opacity-80"
                                             aria-label={`Perbesar gambar produk ${item.productName}`}
                                         >
-                                            <img 
-                                                src={item.productImage} 
-                                                alt={item.productName} 
-                                                className="w-12 h-12 object-cover rounded shadow-sm"
-                                            />
+                                            <img src={item.productImage} alt={item.productName} className="w-12 h-12 object-cover rounded shadow-sm" />
                                         </button>
                                     </td>
                                     <td className="py-4 px-4 text-right text-sm text-text-secondary font-medium">{formatCurrency(item.price)}</td>
@@ -239,7 +212,7 @@ const UserInputBudgetPage: React.FC = () => {
                 </div>
             </Card>
 
-            {/* Sticky Footer for Grand Total and Submit */}
+            {/* Sticky Footer */}
             <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-surface border-t border-border-color p-4 md:p-6 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1),0_-4px_6px_-4px_rgba(0,0,0,0.1)] z-20">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-4">
@@ -254,11 +227,11 @@ const UserInputBudgetPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="w-full md:w-72">
-                         {error && <p className="text-danger text-xs text-center mb-2 font-bold bg-danger/10 py-1.5 rounded">{error}</p>}
-                        <Button 
+                        {error && <p className="text-danger text-xs text-center mb-2 font-bold bg-danger/10 py-1.5 rounded">{error}</p>}
+                        <Button
                             variant="primary"
-                            className="w-full py-3 md:py-4 text-base font-bold shadow-lg hover:translate-y-[-2px] transition-all" 
-                            onClick={handleOpenConfirmModal} 
+                            className="w-full py-3 md:py-4 text-base font-bold shadow-lg hover:translate-y-[-2px] transition-all"
+                            onClick={handleOpenConfirmModal}
                             disabled={itemsToSubmit.length === 0}
                         >
                             SUBMIT BUDGETING
@@ -277,7 +250,7 @@ const UserInputBudgetPage: React.FC = () => {
                     </div>
                 </div>
             </Modal>
-            
+
             <Modal isOpen={isSuccessModalOpen} onClose={() => setIsSuccessModalOpen(false)} title="Success">
                 <div className="text-center p-4">
                     <div className="mb-4 text-secondary">
@@ -291,7 +264,7 @@ const UserInputBudgetPage: React.FC = () => {
             </Modal>
 
             <Modal isOpen={!!zoomedImage} onClose={() => setZoomedImage(null)} title={zoomedImage?.alt || 'Product'}>
-                {zoomedImage && <img src={zoomedImage.src} className="max-w-full rounded-lg" />}
+                {zoomedImage && <img src={zoomedImage.src} className="max-w-full rounded-lg" alt={zoomedImage.alt} />}
             </Modal>
         </div>
     );
