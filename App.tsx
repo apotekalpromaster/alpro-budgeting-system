@@ -75,9 +75,10 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         outletId:   profile.outlet_id ?? undefined,
     });
 
-    const login = async (email: string, password?: string): Promise<User | null> => {
+    const login = async (usernameOrEmail: string, password?: string): Promise<User | null> => {
         try {
-            await signIn(email, password ?? '');
+            const loginEmail = usernameOrEmail.includes('@') ? usernameOrEmail : `${usernameOrEmail}@alpro.com`;
+            await signIn(loginEmail, password ?? '');
             const profile = await getCurrentUserProfile();
             if (!profile) return null;
             const mappedUser = mapProfileToUser(profile);
