@@ -22,6 +22,7 @@ const UserInputBudgetPage: React.FC = () => {
 
     const [allProducts, setAllProducts] = useState<BudgetItem[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState('Semua Kategori');
     const [error, setError] = useState('');
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -75,11 +76,13 @@ const UserInputBudgetPage: React.FC = () => {
 
     const filteredItems = useMemo(() => {
         const lowercasedTerm = searchTerm.toLowerCase();
-        return allProducts.filter(p => 
-            String(p.productName).toLowerCase().includes(lowercasedTerm) ||
-            String(p.productId).toLowerCase().includes(lowercasedTerm)
-        );
-    }, [allProducts, searchTerm]);
+        return allProducts.filter(p => {
+            const matchesSearch = String(p.productName).toLowerCase().includes(lowercasedTerm) ||
+                                 String(p.productId).toLowerCase().includes(lowercasedTerm);
+            const matchesCategory = categoryFilter === 'Semua Kategori' || p.category === categoryFilter;
+            return matchesSearch && matchesCategory;
+        });
+    }, [allProducts, searchTerm, categoryFilter]);
 
     const itemsToSubmit = useMemo(() => {
         return allProducts.filter(item => item.qty > 0);
@@ -151,92 +154,118 @@ const UserInputBudgetPage: React.FC = () => {
     };
 
     return (
-        <div className="h-full">
-            <Card className="flex flex-col h-full">
-                 <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                    <h2 className="text-xl font-bold text-text-primary flex items-center">
+        <div className="h-full relative pb-24 md:pb-28">
+            <Card className="flex flex-col h-full overflow-hidden">
+                 <div className="flex-shrink-0 flex flex-col lg:flex-row justify-between lg:items-center mb-6 gap-4">
+                    <h2 className="text-2xl font-bold text-text-primary flex items-center">
                         Product List
                     </h2>
-                    <input
-                        type="text"
-                        placeholder="Cari nama atau kode..."
-                        className="w-full sm:w-72 p-2 border border-gray-600 bg-gray-700 text-white placeholder-gray-400 rounded-md focus:ring-2 focus:ring-primary"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
+                    <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                        <select 
+                            className="p-2.5 border border-gray-600 bg-gray-700 text-white rounded-md focus:ring-2 focus:ring-primary text-sm min-w-[150px]"
+                            value={categoryFilter}
+                            onChange={e => setCategoryFilter(e.target.value)}
+                        >
+                            <option value="Semua Kategori">Semua Kategori</option>
+                            <option value="Asset">Asset</option>
+                            <option value="Habis Pakai">Habis Pakai</option>
+                        </select>
+                        <input
+                            type="text"
+                            placeholder="Cari nama atau kode..."
+                            className="flex-grow sm:w-72 p-2.5 border border-gray-600 bg-gray-700 text-white placeholder-gray-400 rounded-md focus:ring-2 focus:ring-primary text-sm"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
 
-                <div className="flex-grow overflow-y-auto rounded-lg border border-border-color">
+                <div className="flex-grow overflow-y-auto rounded-lg border border-border-color mb-4">
                     <table className="min-w-full bg-surface">
                         <thead className="bg-gray-100 sticky top-0 z-10">
                             <tr>
-                                <th className="py-3 px-4 text-left text-xs font-bold text-text-secondary uppercase w-32">ID</th>
-                                <th className="py-3 px-4 text-left text-xs font-bold text-text-secondary uppercase">Item Name</th>
-                                <th className="py-3 px-4 text-center text-xs font-bold text-text-secondary uppercase w-24">Cat</th>
-                                <th className="py-3 px-4 text-left text-xs font-bold text-text-secondary uppercase w-24">Img</th>
-                                <th className="py-3 px-4 text-right text-xs font-bold text-text-secondary uppercase w-32">Price</th>
-                                <th className="py-3 px-4 text-center text-xs font-bold text-text-secondary uppercase w-28">Qty</th>
-                                <th className="py-3 px-4 text-right text-xs font-bold text-text-secondary uppercase w-36">Total</th>
+                                <th className="py-4 px-4 text-left text-sm font-bold text-text-secondary uppercase w-32">ID</th>
+                                <th className="py-4 px-4 text-left text-sm font-bold text-text-secondary uppercase">Item Name</th>
+                                <th className="py-4 px-4 text-center text-sm font-bold text-text-secondary uppercase w-24">Cat</th>
+                                <th className="py-4 px-4 text-center text-sm font-bold text-text-secondary uppercase w-24">Img</th>
+                                <th className="py-4 px-4 text-right text-sm font-bold text-text-secondary uppercase w-32">Price</th>
+                                <th className="py-4 px-4 text-center text-sm font-bold text-text-secondary uppercase w-28">Qty</th>
+                                <th className="py-4 px-4 text-right text-sm font-bold text-text-secondary uppercase w-36">Total</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-color">
                             {filteredItems.map((item, index) => (
-                                <tr key={item.productId} className={`${index % 2 === 0 ? 'bg-surface' : 'bg-background'} hover:bg-gray-100 transition-colors`}>
-                                    <td className="py-3 px-4 font-mono text-xs text-gray-500">{item.productId}</td>
-                                    <td className="py-3 px-4">
-                                        <div className="text-sm font-medium text-text-primary">{item.productName}</div>
-                                        <div className="text-[10px] text-gray-400 uppercase">{item.unit}</div>
+                                <tr key={item.productId} className={`${index % 2 === 0 ? 'bg-surface' : 'bg-background'} hover:bg-gray-50 transition-colors`}>
+                                    <td className="py-4 px-4 font-mono text-sm text-gray-500">{item.productId}</td>
+                                    <td className="py-4 px-4">
+                                        <div className="text-sm font-semibold text-text-primary">{item.productName}</div>
+                                        <div className="text-xs text-gray-400 uppercase tracking-wider mt-0.5">{item.unit}</div>
                                     </td>
-                                    <td className="py-3 px-4 text-center">
-                                         <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${item.category === 'Asset' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                                            {item.category === 'Asset' ? 'AST' : 'HB'}
+                                    <td className="py-4 px-4 text-center">
+                                         <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-tight ${item.category === 'Asset' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                                            {item.category === 'Asset' ? 'ASSET' : 'HB'}
                                         </span>
                                     </td>
-                                    <td className="py-3 px-4">
-                                        <img 
-                                            src={item.productImage} 
-                                            alt={item.productName} 
-                                            className="w-10 h-10 object-cover rounded cursor-pointer"
+                                    <td className="py-4 px-4 text-center">
+                                        <button 
+                                            type="button"
                                             onClick={() => setZoomedImage({ src: item.productImage, alt: item.productName })}
-                                        />
+                                            className="focus:outline-none focus:ring-2 focus:ring-primary rounded p-0.5 transition-all hover:opacity-80"
+                                            aria-label={`Perbesar gambar produk ${item.productName}`}
+                                        >
+                                            <img 
+                                                src={item.productImage} 
+                                                alt={item.productName} 
+                                                className="w-12 h-12 object-cover rounded shadow-sm"
+                                            />
+                                        </button>
                                     </td>
-                                    <td className="py-3 px-4 text-right text-sm text-text-secondary">{formatCurrency(item.price)}</td>
-                                    <td className="py-3 px-4">
+                                    <td className="py-4 px-4 text-right text-sm text-text-secondary font-medium">{formatCurrency(item.price)}</td>
+                                    <td className="py-4 px-4">
                                         <input
                                             type="number"
                                             value={item.qty === 0 ? '' : item.qty}
                                             onChange={e => handleQuantityChange(item.productId, e.target.value)}
-                                            className="w-16 p-1 border border-gray-600 bg-gray-700 text-white rounded text-center mx-auto block focus:ring-2 focus:ring-primary"
+                                            className="w-20 p-2 border border-gray-600 bg-gray-700 text-white rounded text-center mx-auto block focus:ring-2 focus:ring-primary text-sm sm:text-base font-bold"
                                             placeholder="0"
                                             min="0"
                                         />
                                     </td>
-                                    <td className="py-3 px-4 text-right text-sm font-semibold text-primary">{formatCurrency(item.total)}</td>
+                                    <td className="py-4 px-4 text-right text-sm font-bold text-primary">{formatCurrency(item.total)}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-                 <div className="flex-shrink-0 border-t border-border-color mt-auto pt-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-center">
-                        <div className="text-lg">
-                            <span className="font-medium text-text-secondary">Grand Total: </span>
-                            <span className="font-bold text-2xl text-primary">{formatCurrency(grandTotal)}</span>
+            </Card>
+
+            {/* Sticky Footer for Grand Total and Submit */}
+            <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-surface border-t border-border-color p-4 md:p-6 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1),0_-4px_6px_-4px_rgba(0,0,0,0.1)] z-20">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-text-secondary uppercase tracking-widest mb-1">Total Pengajuan</span>
+                            <span className="font-bold text-2xl md:text-3xl text-primary">{formatCurrency(grandTotal)}</span>
                         </div>
-                        <div className="w-full sm:w-auto mt-4 sm:mt-0">
-                             {error && <p className="text-danger text-sm text-center mb-2">{error}</p>}
-                            <Button 
-                                variant="primary"
-                                className="w-full" 
-                                onClick={handleOpenConfirmModal} 
-                                disabled={itemsToSubmit.length === 0}
-                            >
-                                Submit Budgeting
-                            </Button>
+                        <div className="h-10 w-px bg-gray-200 hidden md:block mx-4"></div>
+                        <div className="hidden sm:flex flex-col">
+                            <span className="text-xs font-bold text-text-secondary uppercase tracking-widest mb-1">Item Terpilih</span>
+                            <span className="font-bold text-lg text-text-primary">{itemsToSubmit.length} Produk</span>
                         </div>
                     </div>
+                    <div className="w-full md:w-72">
+                         {error && <p className="text-danger text-xs text-center mb-2 font-bold bg-danger/10 py-1.5 rounded">{error}</p>}
+                        <Button 
+                            variant="primary"
+                            className="w-full py-3 md:py-4 text-base font-bold shadow-lg hover:translate-y-[-2px] transition-all" 
+                            onClick={handleOpenConfirmModal} 
+                            disabled={itemsToSubmit.length === 0}
+                        >
+                            SUBMIT BUDGETING
+                        </Button>
+                    </div>
                 </div>
-            </Card>
+            </div>
 
             <Modal isOpen={isConfirmModalOpen} onClose={() => setIsConfirmModalOpen(false)} title="Confirm Submission">
                 <div className="text-center p-2">
